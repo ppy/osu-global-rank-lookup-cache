@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Threading;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using MySqlConnector;
 
 namespace GlobalRankLookupCache.Controllers
 {
@@ -13,15 +11,14 @@ namespace GlobalRankLookupCache.Controllers
     [Route("[controller]")]
     public class RankLookupController : ControllerBase
     {
-        private readonly ILogger<RankLookupController> _logger;
+        private readonly ILogger<RankLookupController> logger;
 
         public RankLookupController(ILogger<RankLookupController> logger)
         {
-            _logger = logger;
+            this.logger = logger;
         }
 
-        private static BeatmapRankCache[] beatmapRankCache = new[]
-        {
+        private static readonly BeatmapRankCache[] beatmap_rank_cache = {
             new BeatmapRankCache("osu_scores_high"),
             new BeatmapRankCache("osu_scores_taiko_high"),
             new BeatmapRankCache("osu_scores_fruits_high"),
@@ -31,7 +28,7 @@ namespace GlobalRankLookupCache.Controllers
         [HttpGet]
         public long Get(int rulesetId, int beatmapId, long score)
         {
-            return beatmapRankCache[rulesetId].Lookup(beatmapId, score);
+            return beatmap_rank_cache[rulesetId].Lookup(beatmapId, score);
         }
     }
 
@@ -39,18 +36,20 @@ namespace GlobalRankLookupCache.Controllers
     {
         private readonly string highScoresTable;
 
-        private readonly ConcurrentDictionary<int, List<long>> beatmapScoresLookup = new ConcurrentDictionary<int, List<long>>();
+        private readonly ConcurrentDictionary<int, Lazy<List<long>>> beatmapScoresLookup = new ConcurrentDictionary<int, Lazy<List<long>>>();
 
         public BeatmapRankCache(string highScoresTable)
         {
             this.highScoresTable = highScoresTable;
         }
 
-        public long Lookup(in int beatmapId, in long score)
+        public long Lookup(int beatmapId, in long score)
         {
-            var scores = beatmapScoresLookup.GetOrAdd(beatmapId, getScoresForBeatmap);
+            var scores = beatmapScoresLookup.GetOrAdd(beatmapId,
+                new Lazy<List<long>>(() => getScoresForBeatmap(beatmapId),
+                    LazyThreadSafetyMode.ExecutionAndPublication));
 
-            int result = scores.BinarySearch(score);
+            int result = scores.Value.BinarySearch(score);
 
             return result < 0 ? ~result : result;
         }
