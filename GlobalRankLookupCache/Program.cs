@@ -1,16 +1,22 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using MySqlConnector;
 
 namespace GlobalRankLookupCache
 {
     public static class Program
     {
+        public static MySqlConnection GetDatabaseConnection()
+        {
+            string host = (Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost");
+            string user = (Environment.GetEnvironmentVariable("DB_USER") ?? "root");
+
+            var connection = new MySqlConnection($"Server={host};Database=osu;User ID={user};ConnectionTimeout=5;ConnectionReset=false;Pooling=true;");
+            connection.Open();
+            return connection;
+        }
+
         public static void Main(string[] args)
         {
             CreateHostBuilder(args).Build().Run();

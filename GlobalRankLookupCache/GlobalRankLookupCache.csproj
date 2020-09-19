@@ -4,5 +4,9 @@
         <TargetFramework>netcoreapp3.1</TargetFramework>
     </PropertyGroup>
 
+    <ItemGroup>
+      <PackageReference Include="ppy.osu.Server.OsuQueueProcessor" Version="2020.902.0" />
+    </ItemGroup>
+
 
 </Project>
