@@ -27,7 +27,7 @@ namespace GlobalRankLookupCache.Controllers
         };
 
         [HttpGet]
-        public long Get(int rulesetId, int beatmapId, long score)
+        public int Get(int rulesetId, int beatmapId, int score)
         {
             return beatmap_rank_cache[rulesetId].Lookup(beatmapId, score);
         }
@@ -37,27 +37,27 @@ namespace GlobalRankLookupCache.Controllers
     {
         private readonly string highScoresTable;
 
-        private readonly ConcurrentDictionary<int, Lazy<List<long>>> beatmapScoresLookup = new ConcurrentDictionary<int, Lazy<List<long>>>();
+        private readonly ConcurrentDictionary<int, Lazy<List<int>>> beatmapScoresLookup = new ConcurrentDictionary<int, Lazy<List<int>>>();
 
         public BeatmapRankCache(string highScoresTable)
         {
             this.highScoresTable = highScoresTable;
         }
 
-        public long Lookup(int beatmapId, in long score)
+        public int Lookup(int beatmapId, in int score, in int? userId = null)
         {
             var scores = beatmapScoresLookup.GetOrAdd(beatmapId,
-                new Lazy<List<long>>(() => getScoresForBeatmap(beatmapId),
+                new Lazy<List<int>>(() => getScoresForBeatmap(beatmapId),
                     LazyThreadSafetyMode.ExecutionAndPublication));
 
-            int result = scores.Value.BinarySearch(score);
+            int result = scores.Value.BinarySearch(score + 1);
 
             return scores.Value.Count - (result < 0 ? ~result : result);
         }
 
-        private List<long> getScoresForBeatmap(int beatmapId)
+        private List<int> getScoresForBeatmap(int beatmapId)
         {
-            var scores = new List<long>();
+            var scores = new List<int>();
 
             using (var db = Program.GetDatabaseConnection())
             using (var cmd = db.CreateCommand())
