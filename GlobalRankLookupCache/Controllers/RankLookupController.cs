@@ -52,7 +52,7 @@ namespace GlobalRankLookupCache.Controllers
 
             int result = scores.Value.BinarySearch(score);
 
-            return result < 0 ? ~result : result;
+            return scores.Value.Count - (result < 0 ? ~result : result);
         }
 
         private List<long> getScoresForBeatmap(int beatmapId)
@@ -84,6 +84,7 @@ namespace GlobalRankLookupCache.Controllers
                     }
                 }
 
+                scores.Reverse();
 
                 Console.WriteLine($"Populated for {beatmapId} ({scores.Count} scores).");
             }
