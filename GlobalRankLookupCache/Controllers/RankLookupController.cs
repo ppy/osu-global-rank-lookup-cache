@@ -18,7 +18,8 @@ namespace GlobalRankLookupCache.Controllers
             this.logger = logger;
         }
 
-        private static readonly BeatmapRankCache[] beatmap_rank_cache = {
+        private static readonly BeatmapRankCache[] beatmap_rank_cache =
+        {
             new BeatmapRankCache("osu_scores_high"),
             new BeatmapRankCache("osu_scores_taiko_high"),
             new BeatmapRankCache("osu_scores_fruits_high"),
@@ -65,6 +66,8 @@ namespace GlobalRankLookupCache.Controllers
 
                 cmd.CommandText = $"SELECT user_id, score FROM {highScoresTable} WHERE beatmap_id = {beatmapId} AND hidden = 0";
 
+                Console.WriteLine($"Populating for {beatmapId}...");
+
                 using (var reader = cmd.ExecuteReader())
                 {
                     while (reader.Read())
@@ -80,6 +83,9 @@ namespace GlobalRankLookupCache.Controllers
                         scores.Add(score);
                     }
                 }
+
+
+                Console.WriteLine($"Populated for {beatmapId} ({scores.Count} scores).");
             }
 
             return scores;
