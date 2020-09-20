@@ -50,9 +50,18 @@ namespace GlobalRankLookupCache.Controllers
                 new Lazy<List<int>>(() => getScoresForBeatmap(beatmapId),
                     LazyThreadSafetyMode.ExecutionAndPublication));
 
-            int result = scores.Value.BinarySearch(score + 1);
+            try
+            {
+                int result = scores.Value.BinarySearch(score + 1);
 
-            return scores.Value.Count - (result < 0 ? ~result : result);
+                return scores.Value.Count - (result < 0 ? ~result : result);
+            }
+            catch
+            {
+                // lazy will cache any exception, but we don't want that.
+                beatmapScoresLookup.TryRemove(beatmapId, out var _);
+                throw;
+            }
         }
 
         private List<int> getScoresForBeatmap(int beatmapId)
