@@ -44,7 +44,7 @@ namespace GlobalRankLookupCache.Controllers
             this.highScoresTable = highScoresTable;
         }
 
-        public int Lookup(int beatmapId, in int score, in int? userId = null)
+        public int Lookup(int beatmapId, in int score)
         {
             var scores = beatmapScoresLookup.GetOrAdd(beatmapId,
                 new Lazy<List<int>>(() => getScoresForBeatmap(beatmapId),
