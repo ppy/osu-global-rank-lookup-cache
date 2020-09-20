@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using osu.Framework.Threading;
 
 namespace GlobalRankLookupCache.Controllers
 {
@@ -72,10 +73,14 @@ namespace GlobalRankLookupCache.Controllers
                 if (!populationInProgress)
                 {
                     populationInProgress = true;
-                    Task.Run(repopulateScores);
+                    task_factory.StartNew(repopulateScores);
                 }
             }
         }
+
+        private static ThreadedTaskScheduler task_scheduler = new ThreadedTaskScheduler(10, "retrieval");
+
+        private static TaskFactory task_factory = new TaskFactory(task_scheduler);
 
         private void repopulateScores()
         {
