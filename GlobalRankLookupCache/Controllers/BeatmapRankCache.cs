@@ -81,43 +81,51 @@ namespace GlobalRankLookupCache.Controllers
         {
             var scores = new List<int>();
 
-            using (var db = Program.GetDatabaseConnection())
-            using (var cmd = db.CreateCommand())
+            try
             {
-                var users = new HashSet<int>();
-
-                cmd.CommandTimeout = 120;
-                cmd.CommandText = $"SELECT user_id, score FROM {highScoresTable} WHERE beatmap_id = {beatmapId} AND hidden = 0";
-
-                if (Scores != null)
-                    Console.WriteLine($"Repopulating for {beatmapId} after {(int)(DateTimeOffset.Now - lastPopulation).TotalMinutes} minutes...");
-                else
-                    Console.WriteLine($"Populating for {beatmapId}...");
-
-                using (var reader = cmd.ExecuteReader())
+                using (var db = Program.GetDatabaseConnection())
+                using (var cmd = db.CreateCommand())
                 {
-                    while (reader.Read())
+                    var users = new HashSet<int>();
+
+                    cmd.CommandTimeout = 120;
+                    cmd.CommandText = $"SELECT user_id, score FROM {highScoresTable} WHERE beatmap_id = {beatmapId} AND hidden = 0";
+
+                    if (Scores != null)
+                        Console.WriteLine($"Repopulating for {beatmapId} after {(int)(DateTimeOffset.Now - lastPopulation).TotalMinutes} minutes...");
+                    else
+                        Console.WriteLine($"Populating for {beatmapId}...");
+
+                    using (var reader = cmd.ExecuteReader())
                     {
-                        int userId = reader.GetInt32(0);
-                        int score = reader.GetInt32(1);
+                        while (reader.Read())
+                        {
+                            int userId = reader.GetInt32(0);
+                            int score = reader.GetInt32(1);
 
-                        // we want one score per user at most
-                        if (users.Contains(userId))
-                            continue;
+                            // we want one score per user at most
+                            if (users.Contains(userId))
+                                continue;
 
-                        users.Add(userId);
-                        scores.Add(score);
+                            users.Add(userId);
+                            scores.Add(score);
+                        }
                     }
+
+                    scores.Reverse();
+
+                    Console.WriteLine($"Populated for {beatmapId} ({scores.Count} scores).");
                 }
 
-                scores.Reverse();
-
-                Console.WriteLine($"Populated for {beatmapId} ({scores.Count} scores).");
+                Scores = scores;
+                populated.Set();
+                lastPopulation = DateTimeOffset.Now;
+            }
+            catch
+            {
+                // will retry next lookup
             }
 
-            Scores = scores;
-            populated.Set();
-            lastPopulation = DateTimeOffset.Now;
             populationInProgress = false;
         }
     }
