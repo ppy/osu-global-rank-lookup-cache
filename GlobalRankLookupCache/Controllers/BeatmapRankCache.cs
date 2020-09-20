@@ -1,58 +1,76 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
-using osu.Framework.Extensions;
+using System.Threading.Tasks;
 
 namespace GlobalRankLookupCache.Controllers
 {
     internal class BeatmapRankCache
     {
+        private readonly int beatmapId;
         private readonly string highScoresTable;
 
-        private readonly ConcurrentDictionary<int, Lazy<List<int>>> beatmapScoresLookup = new ConcurrentDictionary<int, Lazy<List<int>>>();
+        public List<int> Scores;
 
-        public BeatmapRankCache(string highScoresTable)
+        public BeatmapRankCache(int beatmapId, string highScoresTable)
         {
+            this.beatmapId = beatmapId;
             this.highScoresTable = highScoresTable;
         }
 
-        public void Update(int beatmapId, in int oldScore, in int newScore)
+        private bool populationInProgress;
+
+        private readonly ManualResetEventSlim populated = new ManualResetEventSlim();
+
+        public int Lookup(in int score)
         {
-            if (!beatmapScoresLookup.TryGetValue(beatmapId, out var scores))
-                return; // if we're not tracking this beatmap we can just ignore.
-
-            lock (scores.Value)
+            if (!waitForPopulation())
             {
-                scores.Value.Remove(oldScore);
-                scores.Value.AddInPlace(newScore);
-            }
-        }
-
-        public int Lookup(int beatmapId, in int score)
-        {
-            var scores = beatmapScoresLookup.GetOrAdd(beatmapId,
-                new Lazy<List<int>>(() => getScoresForBeatmap(beatmapId),
-                    LazyThreadSafetyMode.ExecutionAndPublication));
-
-            try
-            {
-                int result = scores.Value.BinarySearch(score + 1);
-
-                lock (scores.Value)
+                // do quick lookup
+                using (var db = Program.GetDatabaseConnection())
+                using (var cmd = db.CreateCommand())
                 {
-                    return scores.Value.Count - (result < 0 ? ~result : result);
+                    cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and score > {score} and hidden = 0";
+                    int count = (int)(long)cmd.ExecuteScalar();
+                    Console.WriteLine($"quick lookup for {beatmapId} = {count}");
+                    return count;
                 }
             }
-            catch
+
+            // may change due to re-population
+            var scores = Scores;
+
+            int result = scores.BinarySearch(score + 1);
+            return scores.Count - (result < 0 ? ~result : result);
+        }
+
+        private bool waitForPopulation()
+        {
+            if (populated.IsSet)
+                return true;
+
+            queuePopulation();
+
+            return populated.Wait(1000);
+        }
+
+        private void queuePopulation()
+        {
+            if (populationInProgress)
+                return;
+
+            // ensure only one population occurs
+            lock (this)
             {
-                // lazy will cache any exception, but we don't want that.
-                beatmapScoresLookup.TryRemove(beatmapId, out var _);
-                throw;
+                if (!populationInProgress)
+                {
+                    populationInProgress = true;
+                    Task.Run(repopulateScores);
+                }
             }
         }
 
-        private List<int> getScoresForBeatmap(int beatmapId)
+        private void repopulateScores()
         {
             var scores = new List<int>();
 
@@ -86,7 +104,9 @@ namespace GlobalRankLookupCache.Controllers
                 Console.WriteLine($"Populated for {beatmapId} ({scores.Count} scores).");
             }
 
-            return scores;
+            Scores = scores;
+            populated.Set();
+            populationInProgress = false;
         }
     }
 }

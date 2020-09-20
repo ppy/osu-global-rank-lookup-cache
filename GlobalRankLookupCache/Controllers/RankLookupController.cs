@@ -14,12 +14,12 @@ namespace GlobalRankLookupCache.Controllers
             this.logger = logger;
         }
 
-        private static readonly BeatmapRankCache[] beatmap_rank_cache =
+        private static readonly BeatmapRankCacheCollection[] beatmap_rank_cache =
         {
-            new BeatmapRankCache("osu_scores_high"),
-            new BeatmapRankCache("osu_scores_taiko_high"),
-            new BeatmapRankCache("osu_scores_fruits_high"),
-            new BeatmapRankCache("osu_scores_mania_high")
+            new BeatmapRankCacheCollection("osu_scores_high"),
+            new BeatmapRankCacheCollection("osu_scores_taiko_high"),
+            new BeatmapRankCacheCollection("osu_scores_fruits_high"),
+            new BeatmapRankCacheCollection("osu_scores_mania_high")
         };
 
         [HttpGet]
