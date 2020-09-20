@@ -20,6 +20,8 @@ namespace GlobalRankLookupCache.Controllers
 
         private bool populationInProgress;
 
+        private DateTimeOffset lastPopulation;
+
         private readonly ManualResetEventSlim populated = new ManualResetEventSlim();
 
         public int Lookup(in int score)
@@ -37,8 +39,12 @@ namespace GlobalRankLookupCache.Controllers
                 }
             }
 
-            // may change due to re-population
+            // may change due to re-population; use a local copy
             var scores = Scores;
+
+            // check whether last update was too long ago
+            if ((DateTime.Now - lastPopulation).TotalSeconds > scores.Count)
+                queuePopulation();
 
             int result = scores.BinarySearch(score + 1);
             return scores.Count - (result < 0 ? ~result : result);
@@ -81,7 +87,10 @@ namespace GlobalRankLookupCache.Controllers
 
                 cmd.CommandText = $"SELECT user_id, score FROM {highScoresTable} WHERE beatmap_id = {beatmapId} AND hidden = 0";
 
-                Console.WriteLine($"Populating for {beatmapId}...");
+                if (Scores != null)
+                    Console.WriteLine($"Repopulating for {beatmapId} after {(DateTimeOffset.Now - lastPopulation).TotalMinutes} minutes...");
+                else
+                    Console.WriteLine($"Populating for {beatmapId}...");
 
                 using (var reader = cmd.ExecuteReader())
                 {
@@ -106,6 +115,7 @@ namespace GlobalRankLookupCache.Controllers
 
             Scores = scores;
             populated.Set();
+            lastPopulation = DateTimeOffset.Now;
             populationInProgress = false;
         }
     }
