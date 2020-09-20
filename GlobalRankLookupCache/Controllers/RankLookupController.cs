@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using osu.Framework.Extensions;
 
 namespace GlobalRankLookupCache.Controllers
 {
@@ -44,6 +45,18 @@ namespace GlobalRankLookupCache.Controllers
             this.highScoresTable = highScoresTable;
         }
 
+        public void Update(int beatmapId, in int oldScore, in int newScore)
+        {
+            if (!beatmapScoresLookup.TryGetValue(beatmapId, out var scores))
+                return; // if we're not tracking this beatmap we can just ignore.
+
+            lock (scores.Value)
+            {
+                scores.Value.Remove(oldScore);
+                scores.Value.AddInPlace(newScore);
+            }
+        }
+
         public int Lookup(int beatmapId, in int score)
         {
             var scores = beatmapScoresLookup.GetOrAdd(beatmapId,
@@ -54,7 +67,10 @@ namespace GlobalRankLookupCache.Controllers
             {
                 int result = scores.Value.BinarySearch(score + 1);
 
-                return scores.Value.Count - (result < 0 ? ~result : result);
+                lock (scores.Value)
+                {
+                    return scores.Value.Count - (result < 0 ? ~result : result);
+                }
             }
             catch
             {
