@@ -32,6 +32,7 @@ namespace GlobalRankLookupCache.Controllers
                 using (var db = Program.GetDatabaseConnection())
                 using (var cmd = db.CreateCommand())
                 {
+                    cmd.CommandTimeout = 10;
                     cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and score > {score} and hidden = 0";
                     int count = (int)(long)cmd.ExecuteScalar();
                     Console.WriteLine($"quick lookup for {beatmapId} = {count}");
@@ -85,10 +86,11 @@ namespace GlobalRankLookupCache.Controllers
             {
                 var users = new HashSet<int>();
 
+                cmd.CommandTimeout = 120;
                 cmd.CommandText = $"SELECT user_id, score FROM {highScoresTable} WHERE beatmap_id = {beatmapId} AND hidden = 0";
 
                 if (Scores != null)
-                    Console.WriteLine($"Repopulating for {beatmapId} after {(DateTimeOffset.Now - lastPopulation).TotalMinutes} minutes...");
+                    Console.WriteLine($"Repopulating for {beatmapId} after {(int)(DateTimeOffset.Now - lastPopulation).TotalMinutes} minutes...");
                 else
                     Console.WriteLine($"Populating for {beatmapId}...");
 
