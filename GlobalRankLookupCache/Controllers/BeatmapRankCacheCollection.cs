@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Threading.Tasks;
 using osu.Framework.Extensions;
 
 namespace GlobalRankLookupCache.Controllers
@@ -28,7 +29,7 @@ namespace GlobalRankLookupCache.Controllers
 
         public bool Clear(in int beatmapId) => beatmapScoresLookup.TryRemove(beatmapId, out var _);
 
-        public int Lookup(int beatmapId, in int score)
+        public Task<int> Lookup(int beatmapId, in int score)
         {
             return beatmapScoresLookup.GetOrAdd(beatmapId, new BeatmapRankCache(beatmapId, highScoresTable)).Lookup(score);
         }

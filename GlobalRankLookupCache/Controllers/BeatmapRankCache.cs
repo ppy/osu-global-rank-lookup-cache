@@ -24,7 +24,7 @@ namespace GlobalRankLookupCache.Controllers
 
         private readonly ManualResetEventSlim populated = new ManualResetEventSlim();
 
-        public int Lookup(in int score)
+        public async Task<int> Lookup(int score)
         {
             if (!waitForPopulation())
             {
@@ -34,7 +34,7 @@ namespace GlobalRankLookupCache.Controllers
                 {
                     cmd.CommandTimeout = 10;
                     cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and score > {score} and hidden = 0";
-                    int count = (int)(long)cmd.ExecuteScalar();
+                    int count = (int)(long)await cmd.ExecuteScalarAsync();
                     Console.WriteLine($"quick lookup for {beatmapId} = {count}");
                     return count;
                 }

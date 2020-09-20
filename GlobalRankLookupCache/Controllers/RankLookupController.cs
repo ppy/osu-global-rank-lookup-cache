@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
 namespace GlobalRankLookupCache.Controllers
@@ -23,7 +24,7 @@ namespace GlobalRankLookupCache.Controllers
         };
 
         [HttpGet]
-        public int Get(int rulesetId, int beatmapId, int score)
+        public Task<int> Get(int rulesetId, int beatmapId, int score)
         {
             return beatmap_rank_cache[rulesetId].Lookup(beatmapId, score);
         }
