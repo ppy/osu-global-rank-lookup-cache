@@ -78,9 +78,9 @@ namespace GlobalRankLookupCache.Controllers
             }
         }
 
-        private static ThreadedTaskScheduler task_scheduler = new ThreadedTaskScheduler(10, "retrieval");
+        private static readonly ThreadedTaskScheduler task_scheduler = new ThreadedTaskScheduler(10, "retrieval");
 
-        private static TaskFactory task_factory = new TaskFactory(task_scheduler);
+        private static readonly TaskFactory task_factory = new TaskFactory(task_scheduler);
 
         private void repopulateScores()
         {
@@ -96,10 +96,9 @@ namespace GlobalRankLookupCache.Controllers
                     cmd.CommandTimeout = 120;
                     cmd.CommandText = $"SELECT user_id, score FROM {highScoresTable} WHERE beatmap_id = {beatmapId} AND hidden = 0";
 
-                    if (Scores != null)
-                        Console.WriteLine($"Repopulating for {beatmapId} after {(int)(DateTimeOffset.Now - lastPopulation).TotalMinutes} minutes...");
-                    else
-                        Console.WriteLine($"Populating for {beatmapId}...");
+                    Console.WriteLine(Scores != null
+                        ? $"Repopulating for {beatmapId} after {(int)(DateTimeOffset.Now - lastPopulation).TotalMinutes} minutes..."
+                        : $"Populating for {beatmapId}...");
 
                     using (var reader = cmd.ExecuteReader())
                     {

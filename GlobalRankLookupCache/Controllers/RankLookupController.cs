@@ -1,6 +1,5 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 
 namespace GlobalRankLookupCache.Controllers
 {
@@ -8,13 +7,6 @@ namespace GlobalRankLookupCache.Controllers
     [Route("[controller]")]
     public class RankLookupController : ControllerBase
     {
-        private readonly ILogger<RankLookupController> logger;
-
-        public RankLookupController(ILogger<RankLookupController> logger)
-        {
-            this.logger = logger;
-        }
-
         private static readonly BeatmapRankCacheCollection[] beatmap_rank_cache =
         {
             new BeatmapRankCacheCollection("osu_scores_high"),
