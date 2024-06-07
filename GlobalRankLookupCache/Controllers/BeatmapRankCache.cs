@@ -25,7 +25,7 @@ namespace GlobalRankLookupCache.Controllers
 
         private readonly ManualResetEventSlim populated = new ManualResetEventSlim();
 
-        public async Task<int> Lookup(int score)
+        public async Task<(int position, int total)> Lookup(int score)
         {
             if (!waitForPopulation())
             {
@@ -35,9 +35,15 @@ namespace GlobalRankLookupCache.Controllers
                 {
                     cmd.CommandTimeout = 10;
                     cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and score > {score} and hidden = 0";
-                    int count = (int)(long)await cmd.ExecuteScalarAsync();
-                    Console.WriteLine($"quick lookup for {beatmapId} = {count}");
-                    return count;
+                    int pos = (int)(long)(await cmd.ExecuteScalarAsync())!;
+
+                    cmd.CommandTimeout = 10;
+                    cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and hidden = 0";
+                    int total = (int)(long)(await cmd.ExecuteScalarAsync())!;
+
+                    Console.WriteLine($"quick lookup for {beatmapId} = {pos}/{total}");
+
+                    return (pos, total);
                 }
             }
 
@@ -49,7 +55,7 @@ namespace GlobalRankLookupCache.Controllers
                 queuePopulation();
 
             int result = scores.BinarySearch(score + 1);
-            return scores.Count - (result < 0 ? ~result : result);
+            return (scores.Count - (result < 0 ? ~result : result), scores.Count);
         }
 
         private bool waitForPopulation()

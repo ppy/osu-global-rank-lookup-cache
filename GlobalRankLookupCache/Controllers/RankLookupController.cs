@@ -16,9 +16,10 @@ namespace GlobalRankLookupCache.Controllers
         };
 
         [HttpGet]
-        public Task<int> Get(int rulesetId, int beatmapId, int score)
+        public async Task<IActionResult> Get(int rulesetId, int beatmapId, int score)
         {
-            return beatmap_rank_cache[rulesetId].Lookup(beatmapId, score);
+            (int position, int total) = await beatmap_rank_cache[rulesetId].Lookup(beatmapId, score);
+            return Content($"{position},{total}");
         }
     }
 }
