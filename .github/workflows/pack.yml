@@ -11,6 +11,12 @@ on:
 jobs:
   push_to_registry:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image: pppy/osu-global-rank-lookup-cache
+            context: ./GlobalRankLookupCache
+            file: ./GlobalRankLookupCache/Dockerfile
     steps:
       -
         name: Checkout
