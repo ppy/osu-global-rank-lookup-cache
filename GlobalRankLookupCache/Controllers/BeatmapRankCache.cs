@@ -30,7 +30,7 @@ namespace GlobalRankLookupCache.Controllers
             if (!waitForPopulation())
             {
                 // do quick lookup
-                using (var db = Program.GetDatabaseConnection())
+                using (var db = await Program.GetDatabaseConnection())
                 using (var cmd = db.CreateCommand())
                 {
                     cmd.CommandTimeout = 10;
@@ -88,13 +88,13 @@ namespace GlobalRankLookupCache.Controllers
 
         private static readonly TaskFactory task_factory = new TaskFactory(task_scheduler);
 
-        private void repopulateScores()
+        private async Task repopulateScores()
         {
             var scores = new List<int>();
 
             try
             {
-                using (var db = Program.GetDatabaseConnection())
+                using (var db = await Program.GetDatabaseConnection())
                 using (var cmd = db.CreateCommand())
                 {
                     var users = new HashSet<int>();
@@ -106,7 +106,7 @@ namespace GlobalRankLookupCache.Controllers
                         ? $"Repopulating for {beatmapId} after {(int)(DateTimeOffset.Now - lastPopulation).TotalMinutes} minutes..."
                         : $"Populating for {beatmapId}...");
 
-                    using (var reader = cmd.ExecuteReader())
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
                         while (reader.Read())
                         {
