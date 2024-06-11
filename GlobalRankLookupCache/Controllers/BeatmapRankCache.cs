@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Threading;
 
@@ -23,11 +22,13 @@ namespace GlobalRankLookupCache.Controllers
 
         private DateTimeOffset lastPopulation;
 
-        private readonly ManualResetEventSlim populated = new ManualResetEventSlim();
+        private readonly TaskCompletionSource<bool> populated = new TaskCompletionSource<bool>();
 
         public async Task<(int position, int total)> Lookup(int score)
         {
-            if (!waitForPopulation())
+            bool success = await waitForPopulation();
+
+            if (!success)
             {
                 // do quick lookup
                 using (var db = await Program.GetDatabaseConnection())
@@ -60,14 +61,16 @@ namespace GlobalRankLookupCache.Controllers
             return (scores.Count - (result < 0 ? ~result : result), scores.Count);
         }
 
-        private bool waitForPopulation()
+        private async Task<bool> waitForPopulation()
         {
-            if (populated.IsSet)
+            if (populated.Task.IsCompleted)
                 return true;
 
             queuePopulation();
 
-            return populated.Wait(1000);
+            await Task.WhenAny(Task.Delay(1000), populated.Task);
+
+            return populated.Task.IsCompleted;
         }
 
         private void queuePopulation()
@@ -127,7 +130,7 @@ namespace GlobalRankLookupCache.Controllers
                 }
 
                 Scores = scores;
-                populated.Set();
+                populated.SetResult(true);
                 lastPopulation = DateTimeOffset.Now;
             }
             catch
