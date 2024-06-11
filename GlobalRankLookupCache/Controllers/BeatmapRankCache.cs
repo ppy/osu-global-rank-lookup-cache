@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
-using osu.Framework.Threading;
 
 namespace GlobalRankLookupCache.Controllers
 {
@@ -84,17 +84,17 @@ namespace GlobalRankLookupCache.Controllers
                 if (!populationInProgress)
                 {
                     populationInProgress = true;
-                    task_factory.StartNew(repopulateScores);
+                    Task.Run(repopulateScores);
                 }
             }
         }
 
-        private static readonly ThreadedTaskScheduler task_scheduler = new ThreadedTaskScheduler(10, "retrieval");
-
-        private static readonly TaskFactory task_factory = new TaskFactory(task_scheduler);
+        private static readonly SemaphoreSlim population_tasks_semaphore = new SemaphoreSlim(10);
 
         private async Task repopulateScores()
         {
+            await population_tasks_semaphore.WaitAsync();
+
             var scores = new List<int>();
 
             try
@@ -138,6 +138,7 @@ namespace GlobalRankLookupCache.Controllers
                 // will retry next lookup
             }
 
+            population_tasks_semaphore.Release();
             populationInProgress = false;
         }
     }
