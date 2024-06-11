@@ -114,11 +114,8 @@ namespace GlobalRankLookupCache.Controllers
                             int score = reader.GetInt32(1);
 
                             // we want one score per user at most
-                            if (users.Contains(userId))
-                                continue;
-
-                            users.Add(userId);
-                            scores.Add(score);
+                            if (users.Add(userId))
+                                scores.Add(score);
                         }
                     }
 
