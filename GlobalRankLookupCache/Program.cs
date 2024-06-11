@@ -13,7 +13,7 @@ namespace GlobalRankLookupCache
             string host = (Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost");
             string user = (Environment.GetEnvironmentVariable("DB_USER") ?? "root");
 
-            var connection = new MySqlConnection($"Server={host};Database=osu;User ID={user};ConnectionReset=false;Pooling=true;Max Pool Size=100;Connection Timeout=30;Connection Lifetime=300;");
+            var connection = new MySqlConnection($"Server={host};Database=osu;User ID={user};ConnectionReset=false;Pooling=true;Max Pool Size=100;Connection Timeout=30;");
             await connection.OpenAsync();
             return connection;
         }
