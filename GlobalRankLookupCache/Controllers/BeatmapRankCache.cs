@@ -33,6 +33,8 @@ namespace GlobalRankLookupCache.Controllers
                 using (var db = await Program.GetDatabaseConnection())
                 using (var cmd = db.CreateCommand())
                 {
+                    Console.WriteLine($"performing quick lookup for {beatmapId}...");
+
                     cmd.CommandTimeout = 10;
                     cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and score > {score} and hidden = 0";
                     int pos = (int)(long)(await cmd.ExecuteScalarAsync())!;
@@ -41,7 +43,7 @@ namespace GlobalRankLookupCache.Controllers
                     cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and hidden = 0";
                     int total = (int)(long)(await cmd.ExecuteScalarAsync())!;
 
-                    Console.WriteLine($"quick lookup for {beatmapId} = {pos}/{total}");
+                    Console.WriteLine($"performed quick lookup for {beatmapId} = {pos}/{total}");
 
                     return (pos, total);
                 }
