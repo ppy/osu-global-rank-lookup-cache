@@ -31,7 +31,7 @@ namespace GlobalRankLookupCache.Controllers
 
             if (unixSeconds - lastReport >= 10)
             {
-                if (unixSeconds - Interlocked.Exchange(ref lastReport, unixSeconds) > 10)
+                if (unixSeconds - Interlocked.Exchange(ref lastReport, unixSeconds) >= 10)
                     output();
             }
 
