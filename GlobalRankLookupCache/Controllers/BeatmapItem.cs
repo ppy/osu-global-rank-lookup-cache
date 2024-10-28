@@ -39,17 +39,29 @@ namespace GlobalRankLookupCache.Controllers
                 using (var db = await Program.GetDatabaseConnection())
                 using (var cmd = db.CreateCommand())
                 {
+                    cmd.CommandTimeout = 10;
+
                     Interlocked.Increment(ref RankLookupController.Misses);
 
-                    cmd.CommandTimeout = 10;
-                    cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and score > {score} and hidden = 0";
-                    int pos = (int)(long)(await cmd.ExecuteScalarAsync())!;
-
-                    cmd.CommandTimeout = 10;
                     cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and hidden = 0";
                     int total = (int)(long)(await cmd.ExecuteScalarAsync())!;
 
-                    return (pos, total, false);
+                    if (total < 2000)
+                    {
+                        cmd.CommandText = $"select count(DISTINCT user_id) from {highScoresTable} where beatmap_id = {beatmapId} and hidden = 0";
+                        total = (int)(long)(await cmd.ExecuteScalarAsync())!;
+
+                        cmd.CommandText = $"select count(DISTINCT user_id) from {highScoresTable} where beatmap_id = {beatmapId} and score > {score} and hidden = 0";
+                        int pos = (int)(long)(await cmd.ExecuteScalarAsync())!;
+                        return (pos, total, true);
+                    }
+                    else
+                    {
+                        cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and score > {score} and hidden = 0";
+                        int pos = (int)(long)(await cmd.ExecuteScalarAsync())!;
+
+                        return (pos, total, false);
+                    }
                 }
             }
 
