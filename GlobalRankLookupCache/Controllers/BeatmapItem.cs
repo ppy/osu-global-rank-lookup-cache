@@ -5,14 +5,14 @@ using System.Threading.Tasks;
 
 namespace GlobalRankLookupCache.Controllers
 {
-    internal class BeatmapRankCache
+    internal class BeatmapItem
     {
         private readonly int beatmapId;
         private readonly string highScoresTable;
 
         public List<int> Scores;
 
-        public BeatmapRankCache(int beatmapId, string highScoresTable)
+        public BeatmapItem(int beatmapId, string highScoresTable)
         {
             this.beatmapId = beatmapId;
             this.highScoresTable = highScoresTable;

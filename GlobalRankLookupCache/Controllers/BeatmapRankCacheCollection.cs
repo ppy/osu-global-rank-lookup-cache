@@ -8,7 +8,7 @@ namespace GlobalRankLookupCache.Controllers
     {
         private readonly string highScoresTable;
 
-        private readonly ConcurrentDictionary<int, BeatmapRankCache> beatmapScoresLookup = new ConcurrentDictionary<int, BeatmapRankCache>();
+        private readonly ConcurrentDictionary<int, BeatmapItem> beatmapScoresLookup = new ConcurrentDictionary<int, BeatmapItem>();
 
         public BeatmapRankCacheCollection(string highScoresTable)
         {
@@ -31,7 +31,7 @@ namespace GlobalRankLookupCache.Controllers
 
         public Task<(int position, int total)> Lookup(int beatmapId, in int score)
         {
-            return beatmapScoresLookup.GetOrAdd(beatmapId, new BeatmapRankCache(beatmapId, highScoresTable)).Lookup(score);
+            return beatmapScoresLookup.GetOrAdd(beatmapId, new BeatmapItem(beatmapId, highScoresTable)).Lookup(score);
         }
     }
 }
