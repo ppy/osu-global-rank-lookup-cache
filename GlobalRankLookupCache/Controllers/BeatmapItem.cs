@@ -40,7 +40,6 @@ namespace GlobalRankLookupCache.Controllers
                 using (var cmd = db.CreateCommand())
                 {
                     Interlocked.Increment(ref RankLookupController.Misses);
-                    Console.Write("q");
 
                     cmd.CommandTimeout = 10;
                     cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and score > {score} and hidden = 0";
@@ -49,8 +48,6 @@ namespace GlobalRankLookupCache.Controllers
                     cmd.CommandTimeout = 10;
                     cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and hidden = 0";
                     int total = (int)(long)(await cmd.ExecuteScalarAsync())!;
-
-                    Console.Write("Q");
 
                     return (pos, total);
                 }
@@ -105,8 +102,6 @@ namespace GlobalRankLookupCache.Controllers
 
                     cmd.CommandTimeout = 180;
                     cmd.CommandText = $"SELECT user_id, score FROM {highScoresTable} WHERE beatmap_id = {beatmapId} AND hidden = 0";
-
-                    Console.Write(isRepopulate ? "r" : "p");
 
                     using (var reader = await cmd.ExecuteReaderAsync())
                     {
