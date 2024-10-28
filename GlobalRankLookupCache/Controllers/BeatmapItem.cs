@@ -100,7 +100,7 @@ namespace GlobalRankLookupCache.Controllers
                 {
                     var users = new HashSet<int>();
 
-                    cmd.CommandTimeout = 180;
+                    cmd.CommandTimeout = 600;
                     cmd.CommandText = $"SELECT user_id, score FROM {highScoresTable} WHERE beatmap_id = {beatmapId} AND hidden = 0";
 
                     using (var reader = await cmd.ExecuteReaderAsync())
