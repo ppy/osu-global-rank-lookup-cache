@@ -23,7 +23,7 @@ namespace GlobalRankLookupCache.Controllers
             this.highScoresTable = highScoresTable;
         }
 
-        public async Task<(int position, int total)> Lookup(int score)
+        public async Task<(int position, int total, bool accurate)> Lookup(int score)
         {
             Interlocked.Increment(ref requestsSinceLastPopulation);
 
@@ -49,7 +49,7 @@ namespace GlobalRankLookupCache.Controllers
                     cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and hidden = 0";
                     int total = (int)(long)(await cmd.ExecuteScalarAsync())!;
 
-                    return (pos, total);
+                    return (pos, total, false);
                 }
             }
 
@@ -71,7 +71,7 @@ namespace GlobalRankLookupCache.Controllers
 
             Interlocked.Increment(ref RankLookupController.Hits);
             int result = scores.BinarySearch(score + 1);
-            return (scores.Count - (result < 0 ? ~result : result), scores.Count);
+            return (scores.Count - (result < 0 ? ~result : result), scores.Count, true);
         }
 
         private readonly SemaphoreSlim populationSemaphore = new SemaphoreSlim(1);

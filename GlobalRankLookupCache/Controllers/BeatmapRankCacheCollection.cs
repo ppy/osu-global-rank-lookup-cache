@@ -31,7 +31,7 @@ namespace GlobalRankLookupCache.Controllers
 
         public bool Clear(in int beatmapId) => beatmapScoresLookup.TryRemove(beatmapId, out var _);
 
-        public Task<(int position, int total)> Lookup(int beatmapId, in int score)
+        public Task<(int position, int total, bool accurate)> Lookup(int beatmapId, in int score)
         {
             return beatmapScoresLookup.GetOrAdd(beatmapId, new BeatmapItem(beatmapId, highScoresTable)).Lookup(score);
         }

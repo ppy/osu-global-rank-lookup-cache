@@ -35,8 +35,8 @@ namespace GlobalRankLookupCache.Controllers
                     output();
             }
 
-            (int position, int total) = await beatmap_rank_cache[rulesetId].Lookup(beatmapId, score);
-            return Content($"{position},{total}");
+            (int position, int total, bool accurate) = await beatmap_rank_cache[rulesetId].Lookup(beatmapId, score);
+            return Content($"{position},{total},{accurate}");
         }
 
         private void output()
