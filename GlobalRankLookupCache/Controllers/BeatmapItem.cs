@@ -39,7 +39,7 @@ namespace GlobalRankLookupCache.Controllers
                 using (var db = await Program.GetDatabaseConnection())
                 using (var cmd = db.CreateCommand())
                 {
-                    Interlocked.Increment(ref BeatmapRankCacheCollection.Misses);
+                    Interlocked.Increment(ref RankLookupController.Misses);
                     Console.Write("q");
 
                     cmd.CommandTimeout = 10;
@@ -72,6 +72,7 @@ namespace GlobalRankLookupCache.Controllers
                 }
             }
 
+            Interlocked.Increment(ref RankLookupController.Hits);
             int result = scores.BinarySearch(score + 1);
             return (scores.Count - (result < 0 ? ~result : result), scores.Count);
         }
@@ -129,6 +130,7 @@ namespace GlobalRankLookupCache.Controllers
                 populated.SetResult(true);
                 lastPopulation = DateTimeOffset.Now;
                 requestsSinceLastPopulation = 0;
+                Interlocked.Increment(ref RankLookupController.Populations);
             }
             catch
             {
