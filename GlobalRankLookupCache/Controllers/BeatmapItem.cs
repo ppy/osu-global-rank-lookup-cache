@@ -7,10 +7,15 @@ namespace GlobalRankLookupCache.Controllers
 {
     internal class BeatmapItem
     {
+        public List<int> Scores;
+
         private readonly int beatmapId;
         private readonly string highScoresTable;
 
-        public List<int> Scores;
+        private DateTimeOffset lastPopulation;
+        private int requestsSinceLastPopulation;
+
+        private readonly TaskCompletionSource<bool> populated = new TaskCompletionSource<bool>();
 
         public BeatmapItem(int beatmapId, string highScoresTable)
         {
@@ -18,26 +23,23 @@ namespace GlobalRankLookupCache.Controllers
             this.highScoresTable = highScoresTable;
         }
 
-        private bool populationInProgress;
-
-        private DateTimeOffset lastPopulation;
-        private int requestsSinceLastPopulation;
-
-        private readonly TaskCompletionSource<bool> populated = new TaskCompletionSource<bool>();
-
         public async Task<(int position, int total)> Lookup(int score)
         {
-            requestsSinceLastPopulation++;
+            Interlocked.Increment(ref requestsSinceLastPopulation);
 
-            bool success = await waitForPopulation();
+            if (!populated.Task.IsCompleted && population_tasks_semaphore.CurrentCount > 0)
+                await Task.WhenAny(Task.Delay(1000), Task.Run(repopulateScores));
 
-            if (!success)
+            // may change due to re-population; use a local copy
+            var scores = Scores;
+
+            if (!populated.Task.IsCompleted)
             {
                 // do quick lookup
                 using (var db = await Program.GetDatabaseConnection())
                 using (var cmd = db.CreateCommand())
                 {
-                    Console.WriteLine($"performing quick lookup for {beatmapId}...");
+                    Console.Write("q");
 
                     cmd.CommandTimeout = 10;
                     cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and score > {score} and hidden = 0";
@@ -47,67 +49,50 @@ namespace GlobalRankLookupCache.Controllers
                     cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and hidden = 0";
                     int total = (int)(long)(await cmd.ExecuteScalarAsync())!;
 
-                    Console.WriteLine($"performed quick lookup for {beatmapId} = {pos}/{total}");
+                    Console.Write("Q");
 
                     return (pos, total);
                 }
             }
 
-            // may change due to re-population; use a local copy
-            var scores = Scores;
-
             // check whether last update was too long ago
             if ((DateTime.Now - lastPopulation).TotalSeconds > scores.Count)
-                queuePopulation();
+            {
+                // For seldom requested beatmaps, skip re-population.
+                if (requestsSinceLastPopulation >= 5)
+                {
+                    _ = Task.Run(repopulateScores);
+                }
+                else
+                {
+                    Console.Write($".");
+                    lastPopulation = DateTimeOffset.Now;
+                    requestsSinceLastPopulation--;
+                }
+            }
 
             int result = scores.BinarySearch(score + 1);
             return (scores.Count - (result < 0 ? ~result : result), scores.Count);
         }
 
-        private async Task<bool> waitForPopulation()
-        {
-            if (populated.Task.IsCompleted)
-                return true;
-
-            queuePopulation();
-
-            await Task.WhenAny(Task.Delay(1000), populated.Task);
-
-            return populated.Task.IsCompleted;
-        }
-
-        private void queuePopulation()
-        {
-            if (populationInProgress)
-                return;
-
-            // ensure only one population occurs
-            lock (this)
-            {
-                if (!populationInProgress)
-                {
-                    populationInProgress = true;
-                    Task.Run(repopulateScores);
-                }
-            }
-        }
+        private readonly SemaphoreSlim populationSemaphore = new SemaphoreSlim(1);
 
         private static readonly SemaphoreSlim population_tasks_semaphore = new SemaphoreSlim(10);
 
         private async Task repopulateScores()
         {
-            // For seldom requested beatmaps, skip re-population.
-            if (requestsSinceLastPopulation < 5)
-            {
-                Console.WriteLine($"Skipping population of {beatmapId} due to few requests");
-                lastPopulation = DateTimeOffset.Now;
-                requestsSinceLastPopulation--;
+            // Drop excess requests. If they are common they will arrive again.
+            if (population_tasks_semaphore.CurrentCount == 0)
                 return;
-            }
+
+            if (!await populationSemaphore.WaitAsync(100))
+                return;
 
             await population_tasks_semaphore.WaitAsync();
 
             var scores = new List<int>();
+
+            bool isRepopulate = Scores != null;
 
             try
             {
@@ -119,9 +104,7 @@ namespace GlobalRankLookupCache.Controllers
                     cmd.CommandTimeout = 120;
                     cmd.CommandText = $"SELECT user_id, score FROM {highScoresTable} WHERE beatmap_id = {beatmapId} AND hidden = 0";
 
-                    Console.WriteLine(Scores != null
-                        ? $"Repopulating for {beatmapId} after {(int)(DateTimeOffset.Now - lastPopulation).TotalMinutes} minutes..."
-                        : $"Populating for {beatmapId}...");
+                    Console.Write(isRepopulate ? "r" : "p");
 
                     using (var reader = await cmd.ExecuteReaderAsync())
                     {
@@ -138,7 +121,7 @@ namespace GlobalRankLookupCache.Controllers
 
                     scores.Reverse();
 
-                    Console.WriteLine($"Populated for {beatmapId} ({scores.Count} scores).");
+                    Console.Write(isRepopulate ? "R" : "P");
                 }
 
                 Scores = scores;
@@ -148,11 +131,12 @@ namespace GlobalRankLookupCache.Controllers
             }
             catch
             {
+                Console.Write("E!");
                 // will retry next lookup
             }
 
             population_tasks_semaphore.Release();
-            populationInProgress = false;
+            populationSemaphore.Release();
         }
     }
 }
