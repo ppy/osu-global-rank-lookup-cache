@@ -21,11 +21,14 @@ namespace GlobalRankLookupCache.Controllers
         private bool populationInProgress;
 
         private DateTimeOffset lastPopulation;
+        private int requestsSinceLastPopulation;
 
         private readonly TaskCompletionSource<bool> populated = new TaskCompletionSource<bool>();
 
         public async Task<(int position, int total)> Lookup(int score)
         {
+            requestsSinceLastPopulation++;
+
             bool success = await waitForPopulation();
 
             if (!success)
@@ -93,6 +96,15 @@ namespace GlobalRankLookupCache.Controllers
 
         private async Task repopulateScores()
         {
+            // For seldom requested beatmaps, skip re-population.
+            if (requestsSinceLastPopulation < 5)
+            {
+                Console.WriteLine($"Skipping population of {beatmapId} due to few requests");
+                lastPopulation = DateTimeOffset.Now;
+                requestsSinceLastPopulation--;
+                return;
+            }
+
             await population_tasks_semaphore.WaitAsync();
 
             var scores = new List<int>();
@@ -132,6 +144,7 @@ namespace GlobalRankLookupCache.Controllers
                 Scores = scores;
                 populated.SetResult(true);
                 lastPopulation = DateTimeOffset.Now;
+                requestsSinceLastPopulation = 0;
             }
             catch
             {
