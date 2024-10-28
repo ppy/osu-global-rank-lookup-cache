@@ -139,9 +139,10 @@ namespace GlobalRankLookupCache.Controllers
                 requestsSinceLastPopulation = 0;
                 Interlocked.Increment(ref RankLookupController.Populations);
             }
-            catch
+            catch (Exception e)
             {
-                Console.Write("E!");
+                Console.WriteLine();
+                Console.WriteLine(e.ToString());
                 // will retry next lookup
             }
 
