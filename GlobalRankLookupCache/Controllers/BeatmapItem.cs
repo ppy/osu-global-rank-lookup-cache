@@ -133,10 +133,12 @@ namespace GlobalRankLookupCache.Controllers
                 }
 
                 Scores = scores;
-                populated.SetResult(true);
                 lastPopulation = DateTimeOffset.Now;
                 requestsSinceLastPopulation = 0;
                 Interlocked.Increment(ref RankLookupController.Populations);
+
+                if (!populated.Task.IsCompleted)
+                    populated.SetResult(true);
             }
             catch (Exception e)
             {
