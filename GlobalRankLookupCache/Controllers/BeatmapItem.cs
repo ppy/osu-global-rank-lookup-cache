@@ -77,7 +77,6 @@ namespace GlobalRankLookupCache.Controllers
                 {
                     Console.Write(".");
                     lastPopulation = DateTimeOffset.Now;
-                    requestsSinceLastPopulation--;
                 }
             }
 
