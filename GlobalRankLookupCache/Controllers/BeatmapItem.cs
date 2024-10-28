@@ -39,6 +39,7 @@ namespace GlobalRankLookupCache.Controllers
                 using (var db = await Program.GetDatabaseConnection())
                 using (var cmd = db.CreateCommand())
                 {
+                    Interlocked.Increment(ref BeatmapRankCacheCollection.Misses);
                     Console.Write("q");
 
                     cmd.CommandTimeout = 10;
@@ -65,7 +66,7 @@ namespace GlobalRankLookupCache.Controllers
                 }
                 else
                 {
-                    Console.Write($".");
+                    Console.Write(".");
                     lastPopulation = DateTimeOffset.Now;
                     requestsSinceLastPopulation--;
                 }
@@ -101,7 +102,7 @@ namespace GlobalRankLookupCache.Controllers
                 {
                     var users = new HashSet<int>();
 
-                    cmd.CommandTimeout = 120;
+                    cmd.CommandTimeout = 180;
                     cmd.CommandText = $"SELECT user_id, score FROM {highScoresTable} WHERE beatmap_id = {beatmapId} AND hidden = 0";
 
                     Console.Write(isRepopulate ? "r" : "p");
