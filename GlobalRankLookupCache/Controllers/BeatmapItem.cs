@@ -65,24 +65,46 @@ namespace GlobalRankLookupCache.Controllers
                 }
             }
 
-            // check whether last update was too long ago
-            if ((DateTime.Now - lastPopulation).TotalSeconds > scores.Count)
-            {
-                // For seldom requested beatmaps, skip re-population.
-                if (requestsSinceLastPopulation >= 5)
-                {
-                    _ = Task.Run(repopulateScores);
-                }
-                else
-                {
-                    Console.Write(".");
-                    lastPopulation = DateTimeOffset.Now;
-                }
-            }
+            _ = Task.Run(queueRepopulationIfRequired);
 
             Interlocked.Increment(ref RankLookupController.Hits);
             int result = scores.BinarySearch(score + 1);
             return (scores.Count - (result < 0 ? ~result : result), scores.Count, true);
+        }
+
+        private async Task queueRepopulationIfRequired()
+        {
+            // check whether last update was too long ago
+            if ((DateTime.Now - lastPopulation).TotalSeconds > Scores.Count)
+            {
+                lastPopulation = DateTimeOffset.Now;
+
+                // For seldom requested beatmaps, skip re-population.
+                if (requestsSinceLastPopulation >= 5)
+                {
+                    // Also check whether things actually changed enough to matter.
+                    if (Math.Abs(await getLiveScoreCount() - Scores.Count) > 10)
+                        await repopulateScores();
+                    else
+                        Console.Write("0");
+                }
+                else
+                    Console.Write(".");
+            }
+        }
+
+        private async Task<int> getLiveScoreCount()
+        {
+            int total;
+
+            using (var db = await Program.GetDatabaseConnection())
+            using (var cmd = db.CreateCommand())
+            {
+                cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and hidden = 0";
+                total = (int)(long)(await cmd.ExecuteScalarAsync())!;
+            }
+
+            return total;
         }
 
         private readonly SemaphoreSlim populationSemaphore = new SemaphoreSlim(1);
