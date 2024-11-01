@@ -65,46 +65,13 @@ namespace GlobalRankLookupCache.Controllers
                 }
             }
 
-            _ = Task.Run(queueRepopulationIfRequired);
+            // Re-populate if enough time has passed and enough requests were made.
+            if ((DateTime.Now - lastPopulation).TotalSeconds > Scores.Count && requestsSinceLastPopulation >= 5)
+                _ = Task.Run(repopulateScores);
 
             Interlocked.Increment(ref RankLookupController.Hits);
             int result = scores.BinarySearch(score + 1);
             return (scores.Count - (result < 0 ? ~result : result), scores.Count, true);
-        }
-
-        private async Task queueRepopulationIfRequired()
-        {
-            // check whether last update was too long ago
-            if ((DateTime.Now - lastPopulation).TotalSeconds > Scores.Count)
-            {
-                lastPopulation = DateTimeOffset.Now;
-
-                // For seldom requested beatmaps, skip re-population.
-                if (requestsSinceLastPopulation >= 5)
-                {
-                    // Also check whether things actually changed enough to matter.
-                    if (Math.Abs(await getLiveScoreCount() - Scores.Count) > 10)
-                        await repopulateScores();
-                    else
-                        Console.Write("0");
-                }
-                else
-                    Console.Write(".");
-            }
-        }
-
-        private async Task<int> getLiveScoreCount()
-        {
-            int total;
-
-            using (var db = await Program.GetDatabaseConnection())
-            using (var cmd = db.CreateCommand())
-            {
-                cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and hidden = 0";
-                total = (int)(long)(await cmd.ExecuteScalarAsync())!;
-            }
-
-            return total;
         }
 
         private readonly SemaphoreSlim populationSemaphore = new SemaphoreSlim(1);
@@ -131,30 +98,43 @@ namespace GlobalRankLookupCache.Controllers
                 using (var db = await Program.GetDatabaseConnection())
                 using (var cmd = db.CreateCommand())
                 {
-                    var users = new HashSet<int>();
-
                     cmd.CommandTimeout = 600;
-                    cmd.CommandText = $"SELECT user_id, score FROM {highScoresTable} WHERE beatmap_id = {beatmapId} AND hidden = 0";
 
-                    using (var reader = await cmd.ExecuteReaderAsync())
+                    cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and hidden = 0";
+                    int liveCount = (int)(long)(await cmd.ExecuteScalarAsync())!;
+
+                    // Check whether things actually changed enough to matter. If not, skip this update.
+                    // Of note, if scores *reduced* we should update immediately. This may be a foul play score removed from the header of the leaderboard.
+                    if (isRepopulate && liveCount >= scores.Count && liveCount - scores.Count < 10)
                     {
-                        while (reader.Read())
-                        {
-                            int userId = reader.GetInt32(0);
-                            int score = reader.GetInt32(1);
-
-                            // we want one score per user at most
-                            if (users.Add(userId))
-                                scores.Add(score);
-                        }
+                        Console.Write("-");
                     }
+                    else
+                    {
+                        var users = new HashSet<int>();
 
-                    scores.Reverse();
+                        cmd.CommandText = $"SELECT user_id, score FROM {highScoresTable} WHERE beatmap_id = {beatmapId} AND hidden = 0";
 
-                    Console.Write(isRepopulate ? "R" : "P");
+                        using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            while (reader.Read())
+                            {
+                                int userId = reader.GetInt32(0);
+                                int score = reader.GetInt32(1);
+
+                                // we want one score per user at most
+                                if (users.Add(userId))
+                                    scores.Add(score);
+                            }
+                        }
+
+                        scores.Reverse();
+                        Scores = scores;
+
+                        Console.Write(isRepopulate ? "R" : "P");
+                    }
                 }
 
-                Scores = scores;
                 lastPopulation = DateTimeOffset.Now;
                 requestsSinceLastPopulation = 0;
                 Interlocked.Increment(ref RankLookupController.Populations);
