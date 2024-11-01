@@ -105,6 +105,8 @@ namespace GlobalRankLookupCache.Controllers
 
                     // Check whether things actually changed enough to matter. If not, skip this update.
                     // Of note, if scores *reduced* we should update immediately. This may be a foul play score removed from the header of the leaderboard.
+                    //
+                    // Note that this might not work great if a user improves a score.
                     if (isRepopulate && liveCount >= scores.Count && liveCount - scores.Count < 10)
                     {
                         Console.Write("-");
