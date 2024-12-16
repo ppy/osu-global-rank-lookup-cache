@@ -110,7 +110,7 @@ namespace GlobalRankLookupCache.Controllers
                     int liveCount = (int)(long)(await cmd.ExecuteScalarAsync())!;
 
                     cmd.CommandText = $"select approved from osu_beatmaps where beatmap_id = {beatmapId}";
-                    isQualified = (int)(await cmd.ExecuteScalarAsync())! == 3;
+                    isQualified = (sbyte)(await cmd.ExecuteScalarAsync())! == 3;
 
                     // Check whether things actually changed enough to matter. If not, skip this update.
                     // Of note, if scores *reduced* we should update immediately. This may be a foul play score removed from the header of the leaderboard.
