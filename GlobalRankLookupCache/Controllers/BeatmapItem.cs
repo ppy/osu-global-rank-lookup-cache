@@ -15,6 +15,8 @@ namespace GlobalRankLookupCache.Controllers
         private DateTimeOffset lastPopulation;
         private int requestsSinceLastPopulation;
 
+        private bool isQualified;
+
         private readonly TaskCompletionSource<bool> populated = new TaskCompletionSource<bool>();
 
         public BeatmapItem(int beatmapId, string highScoresTable)
@@ -65,8 +67,12 @@ namespace GlobalRankLookupCache.Controllers
                 }
             }
 
+            // For qualified beatmaps, ensure that transitions to ranked state are handled almost immediately.
+            // Generally qualified beatmaps should not have many scores, so the overhead here should not be too important.
+            if (isQualified && (DateTime.Now - lastPopulation).TotalSeconds > 60)
+                _ = Task.Run(repopulateScores);
             // Re-populate if enough time has passed and enough requests were made.
-            if ((DateTime.Now - lastPopulation).TotalSeconds > Scores.Count && requestsSinceLastPopulation >= 5)
+            else if ((DateTime.Now - lastPopulation).TotalSeconds > Scores.Count && requestsSinceLastPopulation >= 5)
                 _ = Task.Run(repopulateScores);
 
             Interlocked.Increment(ref RankLookupController.Hits);
@@ -102,6 +108,9 @@ namespace GlobalRankLookupCache.Controllers
 
                     cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and hidden = 0";
                     int liveCount = (int)(long)(await cmd.ExecuteScalarAsync())!;
+
+                    cmd.CommandText = $"select approved from osu_beatmaps where beatmap_id = {beatmapId}";
+                    isQualified = (int)(await cmd.ExecuteScalarAsync())! == 3;
 
                     // Check whether things actually changed enough to matter. If not, skip this update.
                     // Of note, if scores *reduced* we should update immediately. This may be a foul play score removed from the header of the leaderboard.
