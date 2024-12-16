@@ -72,7 +72,7 @@ namespace GlobalRankLookupCache.Controllers
             if (isQualified && (DateTime.Now - lastPopulation).TotalSeconds > 60)
                 _ = Task.Run(repopulateScores);
             // Re-populate if enough time has passed and enough requests were made.
-            else if ((DateTime.Now - lastPopulation).TotalSeconds > Scores.Count && requestsSinceLastPopulation >= 5)
+            else if ((DateTime.Now - lastPopulation).TotalSeconds > Scores.Count && (Scores.Count < 1000 || requestsSinceLastPopulation >= 5))
                 _ = Task.Run(repopulateScores);
 
             Interlocked.Increment(ref RankLookupController.Hits);
