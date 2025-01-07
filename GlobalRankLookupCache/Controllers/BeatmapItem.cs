@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using MySqlConnector;
 
 namespace GlobalRankLookupCache.Controllers
 {
@@ -17,7 +18,7 @@ namespace GlobalRankLookupCache.Controllers
 
         private bool isQualified;
 
-        private readonly TaskCompletionSource<bool> populated = new TaskCompletionSource<bool>();
+        private TaskCompletionSource<bool> populated = new TaskCompletionSource<bool>();
 
         public BeatmapItem(int beatmapId, string highScoresTable)
         {
@@ -33,7 +34,7 @@ namespace GlobalRankLookupCache.Controllers
                 await Task.WhenAny(Task.Delay(1000), Task.Run(repopulateScores));
 
             // may change due to re-population; use a local copy
-            var scores = Scores;
+            List<int> scores = Scores;
 
             if (!populated.Task.IsCompleted)
             {
@@ -41,28 +42,27 @@ namespace GlobalRankLookupCache.Controllers
                 using (var db = await Program.GetDatabaseConnection())
                 using (var cmd = db.CreateCommand())
                 {
-                    cmd.CommandTimeout = 10;
-
                     Interlocked.Increment(ref RankLookupController.Misses);
 
+                    cmd.CommandTimeout = 10;
                     cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and hidden = 0";
-                    int total = (int)(long)(await cmd.ExecuteScalarAsync())!;
 
-                    if (total < 2000)
+                    int roughTotal = (int)(long)(await cmd.ExecuteScalarAsync())!;
+
+                    if (roughTotal < 2000)
                     {
                         cmd.CommandText = $"select count(DISTINCT user_id) from {highScoresTable} where beatmap_id = {beatmapId} and hidden = 0";
-                        total = (int)(long)(await cmd.ExecuteScalarAsync())!;
+                        int accurateTotal = (int)(long)(await cmd.ExecuteScalarAsync())!;
 
-                        cmd.CommandText = $"select count(DISTINCT user_id) from {highScoresTable} where beatmap_id = {beatmapId} and score > {score} and hidden = 0";
-                        int pos = (int)(long)(await cmd.ExecuteScalarAsync())!;
-                        return (pos, total, true);
+                        int accuratePosition = await getAccuratePosition(db, score);
+                        return (accuratePosition, accurateTotal, true);
                     }
                     else
                     {
                         cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and score > {score} and hidden = 0";
-                        int pos = (int)(long)(await cmd.ExecuteScalarAsync())!;
+                        int roughPosition = (int)(long)(await cmd.ExecuteScalarAsync())!;
 
-                        return (pos, total, false);
+                        return (roughPosition, roughTotal, false);
                     }
                 }
             }
@@ -77,7 +77,27 @@ namespace GlobalRankLookupCache.Controllers
 
             Interlocked.Increment(ref RankLookupController.Hits);
             int result = scores.BinarySearch(score + 1);
-            return (scores.Count - (result < 0 ? ~result : result), scores.Count, true);
+            int position = (scores.Count - (result < 0 ? ~result : result));
+
+            // A new top score was achieved.
+            // To ensure medals and profiles are updated accurately, require a re-fetch at this point.
+            if (position < 500)
+            {
+                using (var db = await Program.GetDatabaseConnection())
+                    position = await getAccuratePosition(db, score);
+            }
+
+            return (position, scores.Count, true);
+        }
+
+        private async Task<int> getAccuratePosition(MySqlConnection db, int score)
+        {
+            using (var cmd = db.CreateCommand())
+            {
+                cmd.CommandTimeout = 10;
+                cmd.CommandText = $"select count(DISTINCT user_id) from {highScoresTable} where beatmap_id = {beatmapId} and score > {score} and hidden = 0";
+                return (int)(long)(await cmd.ExecuteScalarAsync())!;
+            }
         }
 
         private readonly SemaphoreSlim populationSemaphore = new SemaphoreSlim(1);
