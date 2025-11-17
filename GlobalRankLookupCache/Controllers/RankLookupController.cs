@@ -24,6 +24,8 @@ namespace GlobalRankLookupCache.Controllers
             new LegacyBeatmapRankCache("osu_scores_mania_high")
         };
 
+        private static readonly ScoresBeatmapRankCache scores_rank_cache = new ScoresBeatmapRankCache();
+
         [HttpGet]
         public async Task<IActionResult> Get(int rulesetId, int beatmapId, int score, bool useNewTables)
         {
@@ -35,7 +37,9 @@ namespace GlobalRankLookupCache.Controllers
                     output();
             }
 
-            var result = await legacy_rank_caches[rulesetId].Lookup(beatmapId, score);
+            var result = useNewTables
+                ? await scores_rank_cache.Lookup(beatmapId, rulesetId, score)
+                : await legacy_rank_caches[rulesetId].Lookup(beatmapId, score);
             return Content($"{result.Position},{result.Total},{result.Accurate}");
         }
 
