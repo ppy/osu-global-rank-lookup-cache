@@ -4,7 +4,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace GlobalRankLookupCache.Controllers
 {
-    internal class BeatmapRankCacheCollection
+    internal class LegacyBeatmapRankCache
     {
         private readonly string highScoresTable;
 
@@ -15,7 +15,7 @@ namespace GlobalRankLookupCache.Controllers
 
         public long Count => beatmapScoresLookup.Count;
 
-        public BeatmapRankCacheCollection(string highScoresTable)
+        public LegacyBeatmapRankCache(string highScoresTable)
         {
             this.highScoresTable = highScoresTable;
         }
@@ -38,7 +38,7 @@ namespace GlobalRankLookupCache.Controllers
         {
             return beatmapScoresLookup.GetOrCreate(beatmapId, e =>
             {
-                var item = new BeatmapItem(beatmapId, highScoresTable);
+                var item = new LegacyBeatmapItem(beatmapId, highScoresTable);
 
                 e.SetSlidingExpiration(TimeSpan.FromDays(1));
                 e.Size = 1;

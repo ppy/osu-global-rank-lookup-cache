@@ -6,7 +6,7 @@ using MySqlConnector;
 
 namespace GlobalRankLookupCache.Controllers
 {
-    internal class BeatmapItem
+    internal class LegacyBeatmapItem
     {
         public List<int> Scores;
 
@@ -20,7 +20,7 @@ namespace GlobalRankLookupCache.Controllers
 
         private TaskCompletionSource<bool> populated = new TaskCompletionSource<bool>();
 
-        public BeatmapItem(int beatmapId, string highScoresTable)
+        public LegacyBeatmapItem(int beatmapId, string highScoresTable)
         {
             this.beatmapId = beatmapId;
             this.highScoresTable = highScoresTable;
