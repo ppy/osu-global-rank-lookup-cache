@@ -26,7 +26,7 @@ namespace GlobalRankLookupCache.Controllers
             this.highScoresTable = highScoresTable;
         }
 
-        public async Task<(int position, int total, bool accurate)> Lookup(int score)
+        public async Task<BeatmapRankLookupResult> Lookup(int score)
         {
             Interlocked.Increment(ref requestsSinceLastPopulation);
 
@@ -55,14 +55,14 @@ namespace GlobalRankLookupCache.Controllers
                         int accurateTotal = (int)(long)(await cmd.ExecuteScalarAsync())!;
 
                         int accuratePosition = await getAccuratePosition(db, score);
-                        return (accuratePosition, accurateTotal, true);
+                        return new BeatmapRankLookupResult(accuratePosition, accurateTotal, true);
                     }
                     else
                     {
                         cmd.CommandText = $"select count(*) from {highScoresTable} where beatmap_id = {beatmapId} and score > {score} and hidden = 0";
                         int roughPosition = (int)(long)(await cmd.ExecuteScalarAsync())!;
 
-                        return (roughPosition, roughTotal, false);
+                        return new BeatmapRankLookupResult(roughPosition, roughTotal, false);
                     }
                 }
             }
@@ -87,7 +87,7 @@ namespace GlobalRankLookupCache.Controllers
                     position = await getAccuratePosition(db, score);
             }
 
-            return (position, scores.Count, true);
+            return new BeatmapRankLookupResult(position, scores.Count, true);
         }
 
         private async Task<int> getAccuratePosition(MySqlConnection db, int score)

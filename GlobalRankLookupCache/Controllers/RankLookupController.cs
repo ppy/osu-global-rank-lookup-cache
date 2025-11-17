@@ -35,8 +35,8 @@ namespace GlobalRankLookupCache.Controllers
                     output();
             }
 
-            (int position, int total, bool accurate) = await legacy_rank_caches[rulesetId].Lookup(beatmapId, score);
-            return Content($"{position},{total},{accurate}");
+            var result = await legacy_rank_caches[rulesetId].Lookup(beatmapId, score);
+            return Content($"{result.Position},{result.Total},{result.Accurate}");
         }
 
         private void output()
