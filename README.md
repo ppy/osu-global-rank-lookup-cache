@@ -20,6 +20,5 @@ An zero-index integer denoting the rank in the leaderboard for the provided scor
 # TODO
 
 - Currently this is only useful for global leaderboards. Mod filters cannot be applied, for instance.
-- After an initial query, the queried beatmap will be tracked permanently. There is no cache expiry, so the potential of saturating available memory is real. LRU expiry should be implemented.
 - More correctly handling top 50 lookups where score collisions are feasible (need to fallback to ID).
 
