@@ -54,7 +54,7 @@ namespace GlobalRankLookupCache.Controllers
             long memory = GC.GetTotalMemory(false);
 
             Console.WriteLine();
-            Console.WriteLine($"mem:{memory / 1048576:N0} MB beatmaps:{legacy_rank_caches.Sum(c => c.Count)} hr:{hitRate:P0} h:{hits:N0} m:{misses:N0} p:{populations:N0}");
+            Console.WriteLine($"mem:{memory / 1048576:N0} MB beatmaps:{legacy_rank_caches.Sum(c => c.Count) + scores_rank_cache.Count} hr:{hitRate:P0} h:{hits:N0} m:{misses:N0} p:{populations:N0}");
         }
     }
 }
