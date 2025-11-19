@@ -5,19 +5,30 @@ A memory-based caching layer for beatmap-rank lookups which cannot be easily opt
 
 Intended to handle queries which iterate over large sections of (already indexed) scores, where the overhead of counting rows becomes an issue.
 
-# Query API
+## Environment variables
 
-`/ranklookup?beatmapId={$beatmapId}&score={$score}&rulesetId={$mode}`
+- `DB_HOST`: Database host to use when performing lookups (default: `localhost`)
+- `DB_USER`: Database user to use when performing lookups (default: `root`)
 
-`$beatmapId` - The beatmap ID to lookup
-`$score` - The achieved total score value
-`$mode` - The ruleset ID (0..3)
+## Query API
 
-# Response
+### `GET /ranklookup?beatmapId={$beatmapId}&score={$score}&rulesetId={$mode}`
 
-An zero-index integer denoting the rank in the leaderboard for the provided score.
+#### Parameters
 
-# TODO
+- `$beatmapId` - The beatmap ID to lookup
+- `$score` - The achieved total score value
+- `$mode` - The ruleset ID (0..3)
+
+#### Response
+
+Three comma-delimited values:
+
+- An zero-index integer denoting the rank in the leaderboard for the provided score
+- The count of all scores on the beatmap's leaderboard
+- A boolean indicating whether both preceding counts are accurate or best-effort estimates
+
+## TODO
 
 - Currently this is only useful for global leaderboards. Mod filters cannot be applied, for instance.
 - More correctly handling top 50 lookups where score collisions are feasible (need to fallback to ID).
