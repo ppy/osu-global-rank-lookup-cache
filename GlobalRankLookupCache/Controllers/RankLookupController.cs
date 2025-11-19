@@ -26,8 +26,12 @@ namespace GlobalRankLookupCache.Controllers
 
         private static readonly ScoresBeatmapRankCache scores_rank_cache = new ScoresBeatmapRankCache();
 
+        private static readonly bool use_new_tables = bool.TryParse(Environment.GetEnvironmentVariable("USE_NEW_TABLES"), out bool parsed)
+            ? parsed
+            : throw new InvalidOperationException("USE_NEW_TABLES environment variable must be set to either `[fF]alse` or `[tT]rue`.");
+
         [HttpGet]
-        public async Task<IActionResult> Get(int rulesetId, int beatmapId, int score, bool useNewTables)
+        public async Task<IActionResult> Get(int rulesetId, int beatmapId, int score)
         {
             long unixSeconds = DateTimeOffset.Now.ToUnixTimeSeconds();
 
@@ -37,7 +41,7 @@ namespace GlobalRankLookupCache.Controllers
                     output();
             }
 
-            var result = useNewTables
+            var result = use_new_tables
                 ? await scores_rank_cache.Lookup(beatmapId, rulesetId, score)
                 : await legacy_rank_caches[rulesetId].Lookup(beatmapId, score);
             return Content($"{result.Position},{result.Total},{result.Accurate}");

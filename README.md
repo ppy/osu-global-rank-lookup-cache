@@ -9,6 +9,10 @@ Intended to handle queries which iterate over large sections of (already indexed
 
 - `DB_HOST`: Database host to use when performing lookups (default: `localhost`)
 - `DB_USER`: Database user to use when performing lookups (default: `root`)
+- `USE_NEW_TABLES`:
+  - When `false`, scores are looked up from `osu_scores_*_high` tables, using the ID scheme used by those tables.
+  - When `true`, scores are looked up from the unified `scores` table, using the ID scheme used by this table.
+  - Mandatory, with no default.
 
 ## Query API
 
