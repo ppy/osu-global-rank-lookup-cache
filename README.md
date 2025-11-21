@@ -5,21 +5,35 @@ A memory-based caching layer for beatmap-rank lookups which cannot be easily opt
 
 Intended to handle queries which iterate over large sections of (already indexed) scores, where the overhead of counting rows becomes an issue.
 
-# Query API
+## Environment variables
 
-`/ranklookup?beatmapId={$beatmapId}&score={$score}&rulesetId={$mode}`
+- `DB_HOST`: Database host to use when performing lookups (default: `localhost`)
+- `DB_USER`: Database user to use when performing lookups (default: `root`)
+- `USE_NEW_TABLES`:
+  - When `false`, scores are looked up from `osu_scores_*_high` tables, using the ID scheme used by those tables.
+  - When `true`, scores are looked up from the unified `scores` table, using the ID scheme used by this table.
+  - Mandatory, with no default.
 
-`$beatmapId` - The beatmap ID to lookup
-`$score` - The achieved total score value
-`$mode` - The ruleset ID (0..3)
+## Query API
 
-# Response
+### `GET /ranklookup?beatmapId={$beatmapId}&score={$score}&rulesetId={$mode}`
 
-An zero-index integer denoting the rank in the leaderboard for the provided score.
+#### Parameters
 
-# TODO
+- `$beatmapId` - The beatmap ID to lookup
+- `$score` - The achieved total score value
+- `$mode` - The ruleset ID (0..3)
+
+#### Response
+
+Three comma-delimited values:
+
+- An zero-index integer denoting the rank in the leaderboard for the provided score
+- The count of all scores on the beatmap's leaderboard
+- A boolean indicating whether both preceding counts are accurate or best-effort estimates
+
+## TODO
 
 - Currently this is only useful for global leaderboards. Mod filters cannot be applied, for instance.
-- After an initial query, the queried beatmap will be tracked permanently. There is no cache expiry, so the potential of saturating available memory is real. LRU expiry should be implemented.
 - More correctly handling top 50 lookups where score collisions are feasible (need to fallback to ID).
 

@@ -16,13 +16,19 @@ namespace GlobalRankLookupCache.Controllers
 
         private static long lastReport = DateTimeOffset.Now.ToUnixTimeSeconds();
 
-        private static readonly BeatmapRankCacheCollection[] beatmap_rank_cache =
+        private static readonly LegacyBeatmapRankCache[] legacy_rank_caches =
         {
-            new BeatmapRankCacheCollection("osu_scores_high"),
-            new BeatmapRankCacheCollection("osu_scores_taiko_high"),
-            new BeatmapRankCacheCollection("osu_scores_fruits_high"),
-            new BeatmapRankCacheCollection("osu_scores_mania_high")
+            new LegacyBeatmapRankCache("osu_scores_high"),
+            new LegacyBeatmapRankCache("osu_scores_taiko_high"),
+            new LegacyBeatmapRankCache("osu_scores_fruits_high"),
+            new LegacyBeatmapRankCache("osu_scores_mania_high")
         };
+
+        private static readonly ScoresBeatmapRankCache scores_rank_cache = new ScoresBeatmapRankCache();
+
+        private static readonly bool use_new_tables = bool.TryParse(Environment.GetEnvironmentVariable("USE_NEW_TABLES"), out bool parsed)
+            ? parsed
+            : throw new InvalidOperationException("USE_NEW_TABLES environment variable must be set to either `[fF]alse` or `[tT]rue`.");
 
         [HttpGet]
         public async Task<IActionResult> Get(int rulesetId, int beatmapId, int score)
@@ -35,8 +41,10 @@ namespace GlobalRankLookupCache.Controllers
                     output();
             }
 
-            (int position, int total, bool accurate) = await beatmap_rank_cache[rulesetId].Lookup(beatmapId, score);
-            return Content($"{position},{total},{accurate}");
+            var result = use_new_tables
+                ? await scores_rank_cache.Lookup(beatmapId, rulesetId, score)
+                : await legacy_rank_caches[rulesetId].Lookup(beatmapId, score);
+            return Content($"{result.Position},{result.Total},{result.Accurate}");
         }
 
         private void output()
@@ -50,7 +58,7 @@ namespace GlobalRankLookupCache.Controllers
             long memory = GC.GetTotalMemory(false);
 
             Console.WriteLine();
-            Console.WriteLine($"mem:{memory / 1048576:N0} MB beatmaps:{beatmap_rank_cache.Sum(c => c.Count)} hr:{hitRate:P0} h:{hits:N0} m:{misses:N0} p:{populations:N0}");
+            Console.WriteLine($"mem:{memory / 1048576:N0} MB beatmaps:{legacy_rank_caches.Sum(c => c.Count) + scores_rank_cache.Count} hr:{hitRate:P0} h:{hits:N0} m:{misses:N0} p:{populations:N0}");
         }
     }
 }
