@@ -18,7 +18,7 @@ namespace GlobalRankLookupCache.Controllers
 
         private bool isQualified;
 
-        private TaskCompletionSource<bool> populated = new TaskCompletionSource<bool>();
+        private readonly TaskCompletionSource<bool> populated = new TaskCompletionSource<bool>();
 
         public LegacyBeatmapItem(int beatmapId, string highScoresTable)
         {
