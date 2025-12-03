@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using MySqlConnector;
+using Nest;
 
 namespace GlobalRankLookupCache.Controllers
 {
@@ -51,20 +51,16 @@ namespace GlobalRankLookupCache.Controllers
 
                     int roughTotal = (int)(long)(await cmd.ExecuteScalarAsync())!;
 
-                    if (roughTotal < 2000)
+                    if (roughTotal >= 2000)
                     {
-                        cmd.CommandText = $"SELECT COUNT(DISTINCT `user_id`) from `scores` WHERE {whereCondition}";
-                        int accurateTotal = (int)(long)(await cmd.ExecuteScalarAsync())!;
+                        cmd.CommandText = $"SELECT COUNT(*) from `scores` WHERE {whereCondition} AND `total_score` > {score}";
+                        int roughPosition = (int)(long)(await cmd.ExecuteScalarAsync())!;
 
-                        int accuratePosition = await getAccuratePosition(db, score);
-                        return new BeatmapRankLookupResult(accuratePosition, accurateTotal, true);
+                        return new BeatmapRankLookupResult(roughPosition, roughTotal, false);
                     }
-
-                    cmd.CommandText = $"SELECT COUNT(*) from `scores` WHERE {whereCondition} AND `total_score` > {score}";
-                    int roughPosition = (int)(long)(await cmd.ExecuteScalarAsync())!;
-
-                    return new BeatmapRankLookupResult(roughPosition, roughTotal, false);
                 }
+
+                return await getResultFromElastic(score);
             }
 
             // For qualified beatmaps, ensure that transitions to ranked state are handled almost immediately.
@@ -82,22 +78,46 @@ namespace GlobalRankLookupCache.Controllers
             // A new top score was achieved.
             // To ensure medals and profiles are updated accurately, require a re-fetch at this point.
             if (position < 500)
-            {
-                using (var db = await Program.GetDatabaseConnection())
-                    position = await getAccuratePosition(db, score);
-            }
+                return await getResultFromElastic(score);
 
             return new BeatmapRankLookupResult(position, localScores.Count, true);
         }
 
-        private async Task<int> getAccuratePosition(MySqlConnection db, int score)
+        private async Task<BeatmapRankLookupResult> getResultFromElastic(int score)
         {
-            using (var cmd = db.CreateCommand())
+            var query = new BoolQuery
             {
-                cmd.CommandTimeout = 10;
-                cmd.CommandText = $"SELECT COUNT(DISTINCT user_id) FROM `scores` WHERE {whereCondition} AND `total_score` > {score}";
-                return (int)(long)(await cmd.ExecuteScalarAsync())!;
-            }
+                Filter =
+                [
+                    new TermQuery { Field = "is_legacy", Value = false },
+                    new TermQuery { Field = "ruleset_id", Value = rulesetId },
+                    new TermsQuery { Field = "beatmap_id", Terms = [beatmapId] },
+                ],
+            };
+            var req = new SearchRequest
+            {
+                Query = query,
+                Aggregations = new CardinalityAggregation("by_user", field: "user_id")
+            };
+
+            var totalScoreCountResponse = await Program.ElasticClient.SearchAsync<dynamic>(req, CancellationToken.None);
+            int totalScoreCount = (int)(totalScoreCountResponse.Aggregations.Cardinality("by_user").Value ?? 0);
+
+            query.Must =
+            [
+                new BoolQuery
+                {
+                    MinimumShouldMatch = 1,
+                    Should =
+                    [
+                        new NumericRangeQuery { Field = "total_score", GreaterThan = score }
+                    ]
+                }
+            ];
+            var userScoreCountResponse = await Program.ElasticClient.SearchAsync<dynamic>(req, CancellationToken.None);
+            int userScoreCount = (int)(userScoreCountResponse.Aggregations.Cardinality("by_user").Value ?? 0);
+
+            return new BeatmapRankLookupResult(userScoreCount, totalScoreCount, Accurate: true);
         }
 
         private readonly SemaphoreSlim populationSemaphore = new SemaphoreSlim(1);

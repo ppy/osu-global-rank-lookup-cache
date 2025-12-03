@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using MySqlConnector;
+using Nest;
 
 namespace GlobalRankLookupCache
 {
@@ -18,8 +19,16 @@ namespace GlobalRankLookupCache
             return connection;
         }
 
+        public static ElasticClient ElasticClient { get; private set; }
+
         public static void Main(string[] args)
         {
+            var elasticUri = new Uri(Environment.GetEnvironmentVariable("ELASTICSEARCH_URL") ?? "http://localhost:9200");
+            ConnectionSettings connectionSettings = new ConnectionSettings(elasticUri)
+                                                    .ThrowExceptions()
+                                                    .DefaultIndex(Environment.GetEnvironmentVariable("ELASTICSEARCH_SCORES_INDEX") ?? "scores");
+            ElasticClient = new ElasticClient(connectionSettings);
+
             createHostBuilder(args).Build().Run();
         }
 
