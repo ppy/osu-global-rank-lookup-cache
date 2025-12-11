@@ -40,26 +40,7 @@ namespace GlobalRankLookupCache.Controllers
 
             if (!populated.Task.IsCompleted)
             {
-                // do quick lookup
-                using (var db = await Program.GetDatabaseConnection())
-                using (var cmd = db.CreateCommand())
-                {
-                    Interlocked.Increment(ref RankLookupController.Misses);
-
-                    cmd.CommandTimeout = 10;
-                    cmd.CommandText = $"SELECT COUNT(*) FROM `scores` WHERE {whereCondition}";
-
-                    int roughTotal = (int)(long)(await cmd.ExecuteScalarAsync())!;
-
-                    if (roughTotal >= 2000)
-                    {
-                        cmd.CommandText = $"SELECT COUNT(*) from `scores` WHERE {whereCondition} AND `total_score` > {score}";
-                        int roughPosition = (int)(long)(await cmd.ExecuteScalarAsync())!;
-
-                        return new BeatmapRankLookupResult(roughPosition, roughTotal, false);
-                    }
-                }
-
+                // use elastic as a fallback while cache is still populating
                 return await getResultFromElastic(score);
             }
 
