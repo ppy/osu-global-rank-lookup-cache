@@ -5,6 +5,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="NEST" Version="7.17.5" />
       <PackageReference Include="ppy.osu.Server.OsuQueueProcessor" Version="2024.507.0" />
     </ItemGroup>
 
